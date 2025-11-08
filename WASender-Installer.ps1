@@ -1,9 +1,10 @@
-# WASender Fix Online Installer
-# Created by: Apikey.my
-# Description: Fix WABotSender Send Message Show Success But Not Actually Send !
+# WA SENDER ADMIN SHORTCUT INSTALLER WITH REPLACE
+# Version: 2.0
+# Description: Create admin shortcut for WA Sender dengan replace existing
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "    WASENDER FIX INSTALLER" -ForegroundColor Yellow
+Write-Host "    WA SENDER ADMIN SHORTCUT INSTALLER" -ForegroundColor Yellow
+Write-Host "           WITH REPLACE FUNCTION" -ForegroundColor Yellow
 Write-Host "==========================================" -ForegroundColor Cyan
 
 function Test-Admin {
@@ -12,37 +13,84 @@ function Test-Admin {
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Create-WASenderShortcut {
-    $WASenderPath = "C:\Program Files (x86)\TrendingApps\WaSenderSetUp\WASender.exe"
-    $ShortcutName = "WASender (Fix)"
+function Remove-OldShortcuts {
     $DesktopPath = [Environment]::GetFolderPath("Desktop")
-    $ShortcutPath = "$DesktopPath\$ShortcutName.lnk"
+    $ShortcutPatterns = @(
+        "WA Sender*.lnk",
+        "WASender*.lnk", 
+        "WhatsApp Sender*.lnk",
+        "WaSender*.lnk"
+    )
     
-    # Check if WA Sender exists
-    if (-not (Test-Path $WASenderPath)) {
-        Write-Host "❌ WASender tidak ditemukan di lokasi: $WASenderPath" -ForegroundColor Red
-        Write-Host "📁 Mencari WASender di seluruh system..." -ForegroundColor Yellow
+    $removedCount = 0
+    $removedNames = @()
+    
+    foreach ($pattern in $ShortcutPatterns) {
+        $oldShortcuts = Get-ChildItem -Path $DesktopPath -Filter $pattern -ErrorAction SilentlyContinue
         
-        # Try to find WASender.exe in other locations
-        $possiblePaths = @(
-            "C:\Program Files\TrendingApps\WaSenderSetUp\WASender.exe"
-            "$env:USERPROFILE\AppData\Local\TrendingApps\WaSenderSetUp\WASender.exe"
-            "$env:PROGRAMFILES\TrendingApps\WaSenderSetUp\WASender.exe"
-        )
-        
-        foreach ($path in $possiblePaths) {
-            if (Test-Path $path) {
-                $WASenderPath = $path
-                Write-Host "✅ WASender ditemukan di: $WASenderPath" -ForegroundColor Green
-                break
+        foreach ($shortcut in $oldShortcuts) {
+            try {
+                $shortcutName = $shortcut.Name
+                Remove-Item -Path $shortcut.FullName -Force -ErrorAction Stop
+                Write-Host "🗑️  Shortcut lama dipadam: $shortcutName" -ForegroundColor Magenta
+                $removedCount++
+                $removedNames += $shortcutName
+            }
+            catch {
+                Write-Host "⚠️  Gagal padam shortcut: $($shortcut.Name) - $($_.Exception.Message)" -ForegroundColor Yellow
             }
         }
-        
-        if (-not (Test-Path $WASenderPath)) {
-            Write-Host "❌ WASender tidak ditemukan di sistem." -ForegroundColor Red
-            return $false
+    }
+    
+    return @{
+        Count = $removedCount
+        Names = $removedNames
+    }
+}
+
+function Test-WASenderExists {
+    $possiblePaths = @(
+        "C:\Program Files (x86)\TrendingApps\WaSenderSetUp\WASender.exe",
+        "C:\Program Files\TrendingApps\WaSenderSetUp\WASender.exe",
+        "$env:USERPROFILE\AppData\Local\TrendingApps\WaSenderSetUp\WASender.exe",
+        "$env:PROGRAMFILES\TrendingApps\WaSenderSetUp\WASender.exe",
+        "$env:LOCALAPPDATA\TrendingApps\WaSenderSetUp\WASender.exe"
+    )
+    
+    foreach ($path in $possiblePaths) {
+        if (Test-Path $path) {
+            Write-Host "✅ WA Sender ditemukan di: $path" -ForegroundColor Green
+            return $path
         }
     }
+    
+    # Additional search in Program Files directories
+    $programFilesDirs = @(
+        ${env:ProgramFiles(x86)},
+        $env:ProgramFiles
+    )
+    
+    foreach $dir in $programFilesDirs {
+        if (Test-Path $dir) {
+            $found = Get-ChildItem -Path $dir -Recurse -Filter "WASender.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) {
+                Write-Host "✅ WA Sender ditemukan melalui search: $($found.FullName)" -ForegroundColor Green
+                return $found.FullName
+            }
+        }
+    }
+    
+    return $null
+}
+
+function Create-WASenderShortcut {
+    param(
+        [string]$WASenderPath
+    )
+    
+    $ShortcutName = "WA Sender (Admin)"
+    $DesktopPath = [Environment]::GetFolderPath("Desktop")
+    $ShortcutPath = "$DesktopPath\$ShortcutName.lnk"
     
     try {
         # Create shortcut object
@@ -59,9 +107,8 @@ function Create-WASenderShortcut {
         # Save shortcut
         $Shortcut.Save()
         
-        Write-Host "✅ Wasender Berhasil Di Baikpulih!" -ForegroundColor Green
+        Write-Host "✅ Shortcut baru berhasil dibuat!" -ForegroundColor Green
         Write-Host "📁 Lokasi: $ShortcutPath" -ForegroundColor Cyan
-        Write-Host "🎯 Nama: $ShortcutName" -ForegroundColor Cyan
         
         return $true
     }
@@ -71,42 +118,81 @@ function Create-WASenderShortcut {
     }
 }
 
-function Show-SuccessMessage {
-    Write-Host "`n🎉 INSTALLASI BERHASIL!" -ForegroundColor Green
-    Write-Host "==========================================" -ForegroundColor Cyan
-    Write-Host "Shortcut 'WASender (Fix)' telah dibuat di desktop." -ForegroundColor White
-    Write-Host "`n📝 Cara penggunaan:" -ForegroundColor Yellow
-    Write-Host "1. Double-click shortcut 'WASender (Fix)' di desktop" -ForegroundColor White
-    Write-Host "2. Klik 'Yes' ketika UAC prompt muncul" -ForegroundColor White
-    Write-Host "3. WASender Berjaya Dibaiki" -ForegroundColor White
-    Write-Host "`n⚠️  Catatan: Setiap kali menjalankan, akan diminta konfirmasi UAC" -ForegroundColor Magenta
-    Write-Host "==========================================" -ForegroundColor Cyan
+function Show-InstallationSummary {
+    param(
+        [int]$RemovedCount,
+        [array]$RemovedNames,
+        [bool]$ShortcutCreated
+    )
+    
+    Write-Host "`n" + "="*50 -ForegroundColor Cyan
+    Write-Host "           📊 SUMMARY INSTALLASI" -ForegroundColor Yellow
+    Write-Host "="*50 -ForegroundColor Cyan
+    
+    Write-Host "`n🗑️  SHORTCUT LAMA DIPADAM:" -ForegroundColor White
+    if ($RemovedCount -gt 0) {
+        Write-Host "   Jumlah: $RemovedCount shortcut" -ForegroundColor Green
+        foreach ($name in $RemovedNames) {
+            Write-Host "   • $name" -ForegroundColor Gray
+        }
+    } else {
+        Write-Host "   Tiada shortcut lama ditemukan" -ForegroundColor Gray
+    }
+    
+    Write-Host "`n🆕 SHORTCUT BARU:" -ForegroundColor White
+    if ($ShortcutCreated) {
+        Write-Host "   ✅ 'WA Sender (Admin)' berhasil dibuat" -ForegroundColor Green
+        Write-Host "   📍 Lokasi: Desktop" -ForegroundColor Gray
+    } else {
+        Write-Host "   ❌ Gagal membuat shortcut baru" -ForegroundColor Red
+    }
+    
+    Write-Host "`n🎯 CARA PENGGUNAAN:" -ForegroundColor Yellow
+    Write-Host "   1. Double-click 'WA Sender (Admin)' di desktop" -ForegroundColor White
+    Write-Host "   2. Klik 'Yes' pada UAC prompt" -ForegroundColor White
+    Write-Host "   3. WA Sender akan run sebagai administrator" -ForegroundColor White
+    Write-Host "`n" + "="*50 -ForegroundColor Cyan
 }
 
 # Main execution
 Clear-Host
-Write-Host "Memulai instalasi WASender (Fix)..." -ForegroundColor Yellow
+Write-Host "Memulai instalasi WA Sender Admin Shortcut..." -ForegroundColor Yellow
+Write-Host "Dengan fungsi replace shortcut lama" -ForegroundColor Cyan
 
-# Check if running as admin (optional, just for info)
-if (Test-Admin) {
-    Write-Host "ℹ️  Script berjalan sebagai Administrator" -ForegroundColor Blue
-} else {
-    Write-Host "ℹ️  Script tidak berjalan sebagai Administrator (tidak diperlukan)" -ForegroundColor Blue
+# Step 1: Cari WA Sender
+Write-Host "`n🔍 Mencari WA Sender di sistem..." -ForegroundColor Yellow
+$wasenderPath = Test-WASenderExists
+
+if (-not $wasenderPath) {
+    Write-Host "❌ WA Sender tidak ditemukan di sistem." -ForegroundColor Red
+    Write-Host "   Pastikan WA Sender sudah diinstall terlebih dahulu." -ForegroundColor Yellow
+    Write-Host "`nPress any key to exit..." -ForegroundColor Gray
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    exit 1
 }
 
-# Create the shortcut
-$success = Create-WASenderShortcut
+# Step 2: Padam shortcut lama
+Write-Host "`n🗑️  Mencari dan memadam shortcut lama..." -ForegroundColor Yellow
+$removalResult = Remove-OldShortcuts
 
-if ($success) {
-    Show-SuccessMessage
+# Step 3: Buat shortcut baru
+Write-Host "`n🆕 Membuat shortcut baru..." -ForegroundColor Yellow
+$shortcutCreated = Create-WASenderShortcut -WASenderPath $wasenderPath
+
+# Step 4: Show summary
+Show-InstallationSummary -RemovedCount $removalResult.Count -RemovedNames $removalResult.Names -ShortcutCreated $shortcutCreated
+
+# Final message
+if ($shortcutCreated) {
+    Write-Host "🎉 INSTALLASI BERJAYA!" -ForegroundColor Green
+    if ($removalResult.Count -gt 0) {
+        Write-Host "Shortcut lama telah digantikan dengan yang baru." -ForegroundColor White
+    }
 } else {
-    Write-Host "`n❌ INSTALLASI GAGAL!" -ForegroundColor Red
-    Write-Host "Silakan cek:" -ForegroundColor Yellow
-    Write-Host "1. Apakah WASender sudah terinstall?" -ForegroundColor White
-    Write-Host "2. Path program是否正确?" -ForegroundColor White
-    Write-Host "3. Coba run PowerShell sebagai admin" -ForegroundColor White
+    Write-Host "❌ INSTALLASI GAGAL!" -ForegroundColor Red
+    Write-Host "Silakan cuba run PowerShell sebagai Administrator." -ForegroundColor Yellow
 }
 
-# Pause untuk melihat hasil
+# Pause sebelum exit
 Write-Host "`nPress any key to exit..." -ForegroundColor Gray
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
